@@ -1,4 +1,4 @@
-logLevel := Level.Debug
+logLevel := Level.Warn
 
 // The Typesafe repository
 resolvers += Resolver.typesafeRepo("releases")

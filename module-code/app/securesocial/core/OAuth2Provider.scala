@@ -32,6 +32,7 @@ import scala.Some
  * Base class for all OAuth2 providers
  */
 abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = true) extends IdentityProvider(application) {
+  val flowStateService:FlowStateService = CacheFlowStateService
   val settings = createSettings()
 
   def authMethod = AuthenticationMethod.OAuth2
@@ -128,7 +129,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
         }
       case None =>
         // There's no code in the request, this is the first step in the oauth flow
-        val state = UUID.randomUUID().toString
+        val state = flowStateService.newFlowState
         val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
         Cache.set(sessionId, state, 300)
         var params = List(
