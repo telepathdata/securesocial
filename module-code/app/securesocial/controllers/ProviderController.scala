@@ -31,7 +31,7 @@ import play.api.http.HeaderNames
 /**
  * A controller to provide the authentication entry point
  */
-object ProviderController extends Controller with SecureSocial
+trait ProviderController extends Controller with SecureSocial
 {
   /**
    * The property that specifies the page the user is redirected to if there is no original URL saved in
@@ -163,3 +163,5 @@ object ProviderController extends Controller with SecureSocial
     }
   }
 }
+
+object ProviderController extends ProviderController

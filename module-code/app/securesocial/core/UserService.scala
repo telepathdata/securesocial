@@ -151,7 +151,7 @@ abstract class UserServicePlugin(application: Application) extends Plugin with U
 /**
  * The UserService singleton
  */
-object UserService {
+trait UserServiceSingleton {
   var delegate: Option[UserService] = None
 
   def setService(service: UserService) {
@@ -210,3 +210,5 @@ object UserService {
     throw new RuntimeException("UserService not initialized")
   }
 }
+
+object UserService extends UserServiceSingleton

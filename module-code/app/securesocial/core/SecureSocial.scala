@@ -49,6 +49,9 @@ case class RequestWithUser[A](user: Option[Identity], request: Request[A]) exten
  *    }
  */
 trait SecureSocial extends Controller {
+  def requestService:RequestService = SecureSocial
+  def userService = UserService
+
   /**
    * A Forbidden response for ajax clients
    * @param request
@@ -109,8 +112,8 @@ trait SecureSocial extends Controller {
     {
       implicit val req = request
       val result = for (
-        authenticator <- SecureSocial.authenticatorFromRequest ;
-        user <- UserService.find(authenticator.identityId)
+        authenticator <- requestService.authenticatorFromRequest ;
+        user <- userService.find(authenticator.identityId)
       ) yield {
         touch(authenticator)
         if ( authorize.isEmpty || authorize.get.isAuthorized(user)) {
@@ -135,7 +138,7 @@ trait SecureSocial extends Controller {
         } else {
           Redirect(RoutesHelper.login().absoluteURL(IdentityProvider.sslEnabled))
             .flashing("error" -> Messages("securesocial.loginRequired"))
-            .withSession(session + (SecureSocial.OriginalUrlKey -> request.uri)
+            .withSession(session + (requestService.OriginalUrlKey -> request.uri)
           )
         }
         Future.successful(response.discardingCookies(Authenticator.discardingCookie))
@@ -156,8 +159,8 @@ trait SecureSocial extends Controller {
     {
       implicit val req = request
       val user = for (
-        authenticator <- SecureSocial.authenticatorFromRequest ;
-        user <- UserService.find(authenticator.identityId)
+        authenticator <- requestService.authenticatorFromRequest ;
+        user <- userService.find(authenticator.identityId)
       ) yield {
         touch(authenticator)
         user
@@ -171,7 +174,7 @@ trait SecureSocial extends Controller {
   }
 }
 
-object SecureSocial {
+trait RequestService {
   val OriginalUrlKey = "original-url"
 
   def authenticatorFromRequest(implicit request:RequestHeader) = RequestHandler.authenticatorFromRequest
@@ -219,3 +222,5 @@ object SecureSocial {
     Play.current.configuration.getBoolean("securesocial.enableRefererAsOriginalUrl").getOrElse(false)
   }
 }
+
+object SecureSocial extends RequestService

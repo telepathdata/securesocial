@@ -35,11 +35,13 @@ import securesocial.core.IdentityId
 import scala.language.reflectiveCalls
 
 
+case class RegistrationInfo(userName: Option[String], firstName: String, lastName: String, password: String)
+
 /**
  * A controller to handle user registration.
  *
  */
-object Registration extends Controller {
+trait Registration extends Controller {
 
   val providerId = UsernamePasswordProvider.UsernamePassword
   val UserNameAlreadyTaken = "securesocial.signup.userNameAlreadyTaken"
@@ -80,7 +82,6 @@ object Registration extends Controller {
     Play.current.configuration.getString(key).getOrElse(default)
   }
 
-  case class RegistrationInfo(userName: Option[String], firstName: String, lastName: String, password: String)
 
   val formWithUsername = Form[RegistrationInfo](
     mapping(
@@ -312,3 +313,5 @@ object Registration extends Controller {
     })
   }
 }
+
+object Registration extends Registration

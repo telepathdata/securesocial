@@ -28,7 +28,7 @@ import play.Logger
 /**
  * The Login page controller
  */
-object LoginPage extends Controller
+trait LoginPage extends Controller
 {
   /**
    * The property that specifies the page the user is redirected to after logging out.
@@ -81,3 +81,5 @@ object LoginPage extends Controller
     }
   }
 }
+
+object LoginPage extends LoginPage

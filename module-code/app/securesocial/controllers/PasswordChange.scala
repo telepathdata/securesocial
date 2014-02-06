@@ -31,7 +31,9 @@ import scala.Some
 /**
  * A controller to provide password change functionality
  */
-object PasswordChange extends Controller with SecureSocial {
+case class ChangeInfo(currentPassword: String, newPassword: String)
+
+trait PasswordChange extends Controller with SecureSocial {
   val CurrentPassword = "currentPassword"
   val InvalidPasswordMessage = "securesocial.passwordChange.invalidPassword"
   val NewPassword = "newPassword"
@@ -50,7 +52,6 @@ object PasswordChange extends Controller with SecureSocial {
     RoutesHelper.changePasswordPage().url
   )
 
-  case class ChangeInfo(currentPassword: String, newPassword: String)
 
 
   def checkCurrentPassword[A](currentPassword: String)(implicit request: SecuredRequest[A]):Boolean = {
@@ -103,3 +104,5 @@ object PasswordChange extends Controller with SecureSocial {
     }
   }
 }
+
+object PasswordChange extends PasswordChange
