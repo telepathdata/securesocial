@@ -107,18 +107,16 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     request.queryString.get(OAuth2Constants.Code).flatMap(_.headOption) match {
       case Some(code) =>
         // we're being redirected back from the authorization server with the access code.
-        val user = for (
-          // check if the state we sent is equal to the one we're receiving now before continuing the flow.
-          sessionId <- request.session.get(IdentityProvider.SessionId) ;
-          // todo: review this -> clustered environments
-          originalState <- Cache.getAs[String](sessionId) ;
-          currentState <- request.queryString.get(OAuth2Constants.State).flatMap(_.headOption) if originalState == currentState
-        ) yield {
+        val sessionId = request.session.get(IdentityProvider.SessionId)
+        val flowStateId = request.queryString.get(OAuth2Constants.State).flatMap(_.headOption)
+        val user = if(flowStateId.isDefined && flowStateService.validateFlowState(flowStateId.get, sessionId)) {
           val accessToken = getAccessToken(code)
           val oauth2Info = Some(
             OAuth2Info(accessToken.accessToken, accessToken.tokenType, accessToken.expiresIn, accessToken.refreshToken)
           )
-          SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info)
+          Some(SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info))
+        } else {
+          None
         }
         if ( Logger.isDebugEnabled ) {
           Logger.debug("[securesocial] user = " + user)
@@ -129,9 +127,8 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
         }
       case None =>
         // There's no code in the request, this is the first step in the oauth flow
-        val state = flowStateService.newFlowState
         val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
-        Cache.set(sessionId, state, 300)
+        val state = flowStateService.newFlowState(Some(sessionId))
         var params = List(
           (OAuth2Constants.ClientId, settings.clientId),
           (OAuth2Constants.RedirectUri, RoutesHelper.authenticate(id).absoluteURL(IdentityProvider.sslEnabled)),
