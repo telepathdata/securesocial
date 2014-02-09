@@ -137,8 +137,8 @@ trait Registration extends Controller {
    */
   def startSignUp = Action { implicit request =>
     if (registrationEnabled) {
-      if ( SecureSocial.enableRefererAsOriginalUrl ) {
-        SecureSocial.withRefererAsOriginalUrl(Ok(use[TemplatesPlugin].getStartSignUpPage(startForm)))
+      if ( RequestService.enableRefererAsOriginalUrl ) {
+        RequestService.withRefererAsOriginalUrl(Ok(use[TemplatesPlugin].getStartSignUpPage(startForm)))
       } else {
         Ok(use[TemplatesPlugin].getStartSignUpPage(startForm))
       }

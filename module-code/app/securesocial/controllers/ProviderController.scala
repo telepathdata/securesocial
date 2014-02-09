@@ -26,12 +26,13 @@ import securesocial.core.LoginEvent
 import securesocial.core.AccessDeniedException
 import scala.Some
 import play.api.http.HeaderNames
+import securesocial.core.RequestService
 
 
 /**
  * A controller to provide the authentication entry point
  */
-trait ProviderController extends Controller with SecureSocial
+class ProviderController extends SecureSocialController
 {
   /**
    * The property that specifies the page the user is redirected to if there is no original URL saved in
@@ -55,7 +56,7 @@ trait ProviderController extends Controller with SecureSocial
    * @param session
    * @return
    */
-  def toUrl(session: Session) = session.get(SecureSocial.OriginalUrlKey).getOrElse(landingUrl)
+  def toUrl(session: Session) = session.get(requestService.OriginalUrlKey).getOrElse(landingUrl)
 
   /**
    * The url where the user needs to be redirected after succesful authentication.
@@ -88,7 +89,7 @@ trait ProviderController extends Controller with SecureSocial
 
   private def overrideOriginalUrl(session: Session, redirectTo: Option[String]) = redirectTo match {
     case Some(url) =>
-      session + (SecureSocial.OriginalUrlKey -> url)
+      session + (RequestService.OriginalUrlKey -> url)
     case _ =>
       session
   }
@@ -105,7 +106,7 @@ trait ProviderController extends Controller with SecureSocial
               case Some(url) =>
                 val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
                 val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
-                result.withSession(resultSession + (SecureSocial.OriginalUrlKey -> url))
+                result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
               case _ => result
             }
           } , {
@@ -121,7 +122,7 @@ trait ProviderController extends Controller with SecureSocial
                   }
                   // improve this, I'm duplicating part of the code in completeAuthentication
                   Redirect(toUrl(modifiedSession)).withSession(modifiedSession-
-                    SecureSocial.OriginalUrlKey -
+                    RequestService.OriginalUrlKey -
                     IdentityProvider.SessionId -
                     OAuth1Provider.CacheKey)
                 case _ =>
@@ -134,10 +135,10 @@ trait ProviderController extends Controller with SecureSocial
             Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.accessDenied"))
           }
 
-          case other: Throwable => {
-            Logger.error("Unable to log user in. An exception was thrown", other)
-            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
-          }
+//          case other: Throwable => {
+//            Logger.error("Unable to log user in. An exception was thrown", other)
+//            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
+//          }
         }
       }
       case _ => NotFound
@@ -152,7 +153,7 @@ trait ProviderController extends Controller with SecureSocial
     Authenticator.create(user) match {
       case Right(authenticator) => {
         Redirect(toUrl(withSession)).withSession(withSession -
-          SecureSocial.OriginalUrlKey -
+          RequestService.OriginalUrlKey -
           IdentityProvider.SessionId -
           OAuth1Provider.CacheKey).withCookies(authenticator.toCookie)
       }

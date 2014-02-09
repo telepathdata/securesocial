@@ -21,7 +21,7 @@ import securesocial.core.{IdentityId, UserService, Identity, Authorization}
 import play.api.Play
 import service.InMemoryUserService
 
-object Application extends Controller with securesocial.core.SecureSocial {
+object Application extends Controller with securesocial.core.RequestService {
 
   def index = SecuredAction { implicit request =>
     Ok(views.html.index(request.user))

@@ -151,7 +151,7 @@ abstract class UserServicePlugin(application: Application) extends Plugin with U
 /**
  * The UserService singleton
  */
-trait UserServiceSingleton {
+object UserService extends UserService {
   var delegate: Option[UserService] = None
 
   def setService(service: UserService) {
@@ -204,6 +204,7 @@ trait UserServiceSingleton {
     }
   }
 
+  def deleteExpiredTokens(): Unit = {}
 
   private def notInitialized() {
     Logger.error("[securesocial] UserService was not initialized. Make sure a UserService plugin is specified in your play.plugins file")
@@ -211,4 +212,3 @@ trait UserServiceSingleton {
   }
 }
 
-object UserService extends UserServiceSingleton

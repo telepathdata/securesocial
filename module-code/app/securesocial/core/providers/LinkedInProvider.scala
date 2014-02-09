@@ -33,7 +33,7 @@ class LinkedInProvider(application: Application) extends OAuth1Provider(applicat
 
   override def fillProfile(user: SocialUser): SocialUser = {
     val oauthInfo = user.oAuth1Info.get
-    val promise = WS.url(LinkedInProvider.Api).sign(OAuthCalculator(SecureSocial.serviceInfoFor(user).get.key,
+    val promise = WS.url(LinkedInProvider.Api).sign(OAuthCalculator(RequestService.serviceInfoFor(user).get.key,
       RequestToken(oauthInfo.token, oauthInfo.secret))).get()
 
      try {

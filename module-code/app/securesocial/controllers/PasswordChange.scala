@@ -33,7 +33,7 @@ import scala.Some
  */
 case class ChangeInfo(currentPassword: String, newPassword: String)
 
-trait PasswordChange extends Controller with SecureSocial {
+trait PasswordChange extends SecureSocialController {
   val CurrentPassword = "currentPassword"
   val InvalidPasswordMessage = "securesocial.passwordChange.invalidPassword"
   val NewPassword = "newPassword"

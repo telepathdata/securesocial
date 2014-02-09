@@ -28,7 +28,7 @@ import scala.util.Either;
 import securesocial.core.Authenticator;
 import securesocial.core.Identity;
 import securesocial.core.IdentityProvider;
-import securesocial.core.SecureSocial$;
+import securesocial.core.RequestService$;
 import securesocial.core.UserService$;
 import securesocial.core.providers.utils.RoutesHelper;
 
@@ -150,7 +150,7 @@ public class SecureSocial {
      * @return The ServiceInfo or null if the user did not use an OAuth1 provider
      */
     public static ServiceInfo serviceInfoFor(Identity user) {
-        return Scala.orNull( SecureSocial$.MODULE$.serviceInfoFor(user));
+        return Scala.orNull( RequestService$.MODULE$.serviceInfoFor(user));
     }
 
     /**

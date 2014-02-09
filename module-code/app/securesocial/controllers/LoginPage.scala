@@ -41,7 +41,7 @@ trait LoginPage extends Controller
    */
   def login = Action { implicit request =>
     val to = ProviderController.landingUrl
-    if ( SecureSocial.currentUser.isDefined ) {
+    if ( RequestService.currentUser.isDefined ) {
       // if the user is already logged in just redirect to the app
       if ( Logger.isDebugEnabled() ) {
         Logger.debug("User already logged in, skipping login page. Redirecting to %s".format(to))
@@ -49,8 +49,8 @@ trait LoginPage extends Controller
       Redirect( to )
     } else {
       import com.typesafe.plugin._
-      if ( SecureSocial.enableRefererAsOriginalUrl ) {
-        SecureSocial.withRefererAsOriginalUrl(Ok(use[TemplatesPlugin].getLoginPage(UsernamePasswordProvider.loginForm)))
+      if ( RequestService.enableRefererAsOriginalUrl ) {
+        RequestService.withRefererAsOriginalUrl(Ok(use[TemplatesPlugin].getLoginPage(UsernamePasswordProvider.loginForm)))
       } else {
         import Play.current
         Ok(use[TemplatesPlugin].getLoginPage(UsernamePasswordProvider.loginForm))
@@ -68,7 +68,7 @@ trait LoginPage extends Controller
   def logout = Action { implicit request =>
     val to = Play.configuration.getString(onLogoutGoTo).getOrElse(RoutesHelper.login().absoluteURL(IdentityProvider.sslEnabled))
     val user = for (
-      authenticator <- SecureSocial.authenticatorFromRequest ;
+      authenticator <- RequestService.authenticatorFromRequest ;
       user <- UserService.find(authenticator.identityId)
     ) yield {
       Authenticator.delete(authenticator.id)
