@@ -21,13 +21,9 @@ import providers.utils.RoutesHelper
 import play.api.i18n.Messages
 import play.api.Logger
 import play.api.libs.json.Json
-import play.api.http.HeaderNames
 import scala.concurrent.Future
 import scala.Some
 import play.api.mvc.SimpleResult
-import play.api.libs.oauth.ServiceInfo
-import securesocial.core.RequestService
-
 
 /**
  * A request that adds the User for the current call
@@ -50,6 +46,7 @@ case class RequestWithUser[A](user: Option[Identity], request: Request[A]) exten
  *    }
  */
 trait SecureSocialController extends Controller {
+  def authService:AuthenticatorService = AuthenticatorService
   def requestService:RequestService = RequestService
   def userService = UserService
 
@@ -142,7 +139,7 @@ trait SecureSocialController extends Controller {
             .withSession(session + (requestService.OriginalUrlKey -> request.uri)
           )
         }
-        Future.successful(response.discardingCookies(Authenticator.discardingCookie))
+        Future.successful(response.discardingCookies(authService.discardingCookie))
       })
     }
 
@@ -171,7 +168,7 @@ trait SecureSocialController extends Controller {
   }
 
   def touch(authenticator: Authenticator) {
-    Authenticator.save(authenticator.touch)
+    AuthenticatorService.save(authenticator.touch)
   }
 }
 

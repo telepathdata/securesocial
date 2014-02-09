@@ -28,7 +28,7 @@ import play.Logger
 /**
  * The Login page controller
  */
-trait LoginPage extends Controller
+class LoginPage extends SecureSocialController
 {
   /**
    * The property that specifies the page the user is redirected to after logging out.
@@ -68,13 +68,13 @@ trait LoginPage extends Controller
   def logout = Action { implicit request =>
     val to = Play.configuration.getString(onLogoutGoTo).getOrElse(RoutesHelper.login().absoluteURL(IdentityProvider.sslEnabled))
     val user = for (
-      authenticator <- RequestService.authenticatorFromRequest ;
-      user <- UserService.find(authenticator.identityId)
+      authenticator <- requestService.authenticatorFromRequest ;
+      user <- userService.find(authenticator.identityId)
     ) yield {
-      Authenticator.delete(authenticator.id)
+      authService.delete(authenticator.id)
       user
     }
-    val result = Redirect(to).discardingCookies(Authenticator.discardingCookie)
+    val result = Redirect(to).discardingCookies(authService.discardingCookie)
     user match {
       case Some(u) => result.withSession( Events.fire(new LogoutEvent(u)).getOrElse(session) )
       case None => result

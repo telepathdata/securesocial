@@ -150,7 +150,7 @@ class ProviderController extends SecureSocialController
       Logger.debug("[securesocial] user logged in : [" + user + "]")
     }
     val withSession = Events.fire(new LoginEvent(user)).getOrElse(session)
-    Authenticator.create(user) match {
+    authService.create(user) match {
       case Right(authenticator) => {
         Redirect(toUrl(withSession)).withSession(withSession -
           RequestService.OriginalUrlKey -

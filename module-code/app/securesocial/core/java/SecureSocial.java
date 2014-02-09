@@ -25,11 +25,7 @@ import play.libs.Scala;
 import play.mvc.*;
 import scala.Option;
 import scala.util.Either;
-import securesocial.core.Authenticator;
-import securesocial.core.Identity;
-import securesocial.core.IdentityProvider;
-import securesocial.core.RequestService$;
-import securesocial.core.UserService$;
+import securesocial.core.*;
 import securesocial.core.providers.utils.RoutesHelper;
 
 import java.lang.annotation.ElementType;
@@ -50,6 +46,7 @@ import java.lang.annotation.Target;
  *  }
  */
 public class SecureSocial {
+    public static AuthenticatorService authService = AuthenticatorService$.MODULE$;
 
     /**
      * The user key
@@ -100,20 +97,20 @@ public class SecureSocial {
      * @return the Authenticator or null if there isn't one or has expired.
      */
     private static securesocial.core.Authenticator getAuthenticatorFromRequest(Http.Context ctx) {
-        Http.Cookie cookie = ctx.request().cookies().get(Authenticator.cookieName());
+        Http.Cookie cookie = ctx.request().cookies().get(authService.cookieName());
         Authenticator result = null;
 
         if ( cookie != null ) {
-            Either<Error, Option<Authenticator>> maybeAuthenticator = Authenticator.find(cookie.value());
+            Either<Error, Option<Authenticator>> maybeAuthenticator = authService.find(cookie.value());
             if ( maybeAuthenticator.isRight() ) {
                 result = Scala.orNull(maybeAuthenticator.right().get());
                 if ( result != null && !result.isValid()) {
-                    Authenticator.delete(result.id());
+                    authService.delete(result.id());
                     ctx.response().discardCookie(
-                            Authenticator.cookieName(),
-                            Authenticator.cookiePath(),
-                            Scala.orNull(Authenticator.cookieDomain()),
-                            Authenticator.cookieSecure()
+                            authService.cookieName(),
+                            authService.cookiePath(),
+                            Scala.orNull(authService.cookieDomain()),
+                            authService.cookieSecure()
                             );
                     result = null;
                 }
@@ -231,7 +228,7 @@ public class SecureSocial {
     }
 
     private static void touch(Authenticator authenticator) {
-        Authenticator.save(authenticator.touch());
+        authService.save(authenticator.touch());
     }
 
     /**

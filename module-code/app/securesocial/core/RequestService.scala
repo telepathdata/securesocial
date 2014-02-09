@@ -3,20 +3,59 @@ package securesocial.core
 import play.api.mvc.{Request, Result, RequestHeader}
 import play.api.libs.oauth.ServiceInfo
 import play.api.http.HeaderNames
-import securesocial.services.{CookieRequestHandler, RequestHandler}
-
-/**
- * Created by erik on 2/9/14.
- */
-object RequestService extends RequestService
 
 trait RequestService {
-  def requestHandler:RequestHandler = CookieRequestHandler
+  def userService: UserService = UserService
+  def authService = AuthenticatorService
   val OriginalUrlKey = "original-url"
 
-  def authenticatorFromRequest(implicit request:RequestHeader) = requestHandler.authenticatorFromRequest
-  def currentUser[A](implicit request: RequestHeader) = requestHandler.currentUser
+  def tokenFromRequest(implicit request: RequestHeader): Option[String] = {
+    request.cookies.get(authService.cookieName) map { _.value }
+  }
 
+  def authenticatorFromRequest(implicit request: RequestHeader): Option[Authenticator] = {
+    val result = for {
+      token <- tokenFromRequest
+      maybeAuthenticator <- authService.find(token).fold(e => None, Some(_))
+      authenticator <- maybeAuthenticator
+    } yield {
+      authenticator
+    }
+
+    result match {
+      case Some(a) => {
+        if (!a.isValid) {
+          authService.delete(a.id)
+          None
+        } else {
+          Some(a)
+        }
+      }
+      case None => None
+    }
+  }
+
+
+  /**
+   * Get the current logged in user.  This method can be used from public actions that need to
+   * access the current user if there's any
+   *
+   * @param request
+   * @tparam A
+   * @return
+   */
+  def currentUser[A](implicit request: RequestHeader):Option[Identity] = {
+    request match {
+      case securedRequest: SecuredRequest[_] => Some(securedRequest.user)
+      case userAware: RequestWithUser[_] => userAware.user
+      case _ => for (
+            authenticator <- authenticatorFromRequest ;
+            user <- userService.find(authenticator.identityId)
+          ) yield {
+            user
+          }
+    }
+  }
 
   /**
    * Returns the ServiceInfo needed to sign OAuth1 requests.
@@ -59,3 +98,5 @@ trait RequestService {
     Play.current.configuration.getBoolean("securesocial.enableRefererAsOriginalUrl").getOrElse(false)
   }
 }
+
+object RequestService extends RequestService
