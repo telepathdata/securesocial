@@ -28,12 +28,12 @@ import play.api.mvc.SimpleResult
 /**
  * A request that adds the User for the current call
  */
-case class SecuredRequest[A](user: Identity, request: Request[A]) extends WrappedRequest(request)
+case class SecuredRequest[A](identity: Identity, request: Request[A]) extends WrappedRequest(request)
 
 /**
  * A request that adds the User for the current call
  */
-case class RequestWithUser[A](user: Option[Identity], request: Request[A]) extends WrappedRequest(request)
+case class RequestWithIdentity[A](identity: Option[Identity], request: Request[A]) extends WrappedRequest(request)
 
 
 /**
@@ -48,7 +48,7 @@ case class RequestWithUser[A](user: Option[Identity], request: Request[A]) exten
 trait SecureSocialController extends Controller {
   def authService:AuthenticatorService = AuthenticatorService
   def requestService:RequestService = RequestService
-  def userService = UserService
+  def identityService = UserService
 
   /**
    * A Forbidden response for ajax clients
@@ -111,11 +111,11 @@ trait SecureSocialController extends Controller {
       implicit val req = request
       val result = for (
         authenticator <- requestService.authenticatorFromRequest ;
-        user <- userService.find(authenticator.identityId)
+        identity <- identityService.find(authenticator.identityId)
       ) yield {
         touch(authenticator)
-        if ( authorize.isEmpty || authorize.get.isAuthorized(user)) {
-          block(SecuredRequest(user, request))
+        if ( authorize.isEmpty || authorize.get.isAuthorized(identity)) {
+          block(SecuredRequest(identity, request))
         } else {
           Future.successful {
             if ( ajaxCall ) {
@@ -151,19 +151,19 @@ trait SecureSocialController extends Controller {
   /**
    * An action that adds the current user in the request if it's available.
    */
-  object UserAwareAction extends ActionBuilder[RequestWithUser] {
+  object UserAwareAction extends ActionBuilder[RequestWithIdentity] {
     protected def invokeBlock[A](request: Request[A],
-                                 block: (RequestWithUser[A]) => Future[SimpleResult]): Future[SimpleResult] =
+                                 block: (RequestWithIdentity[A]) => Future[SimpleResult]): Future[SimpleResult] =
     {
       implicit val req = request
-      val user = for (
+      val identity = for (
         authenticator <- requestService.authenticatorFromRequest ;
-        user <- userService.find(authenticator.identityId)
+        identity <- identityService.find(authenticator.identityId)
       ) yield {
         touch(authenticator)
-        user
+        identity
       }
-      block(RequestWithUser(user, request))
+      block(RequestWithIdentity(identity, request))
     }
   }
 

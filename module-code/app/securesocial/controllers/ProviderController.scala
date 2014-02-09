@@ -95,7 +95,7 @@ class ProviderController extends SecureSocialController
   }
 
   private def handleAuth(provider: String, redirectTo: Option[String]) = UserAwareAction { implicit request =>
-    val authenticationFlow = request.user.isEmpty
+    val authenticationFlow = request.identity.isEmpty
     val modifiedSession = overrideOriginalUrl(session, redirectTo)
 
     Registry.providers.get(provider) match {
@@ -114,7 +114,7 @@ class ProviderController extends SecureSocialController
               val saved = UserService.save(user)
               completeAuthentication(saved, modifiedSession)
             } else {
-              request.user match {
+              request.identity match {
                 case Some(currentUser) =>
                   UserService.link(currentUser, user)
                   if ( Logger.isDebugEnabled ) {

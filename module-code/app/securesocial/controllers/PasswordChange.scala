@@ -55,8 +55,8 @@ trait PasswordChange extends SecureSocialController {
 
 
   def checkCurrentPassword[A](currentPassword: String)(implicit request: SecuredRequest[A]):Boolean = {
-    val maybeHasher = request.user.passwordInfo.flatMap(p => Registry.hashers.get(p.hasher))
-    maybeHasher.map(_.matches(request.user.passwordInfo.get, currentPassword)).getOrElse(false)
+    val maybeHasher = request.identity.passwordInfo.flatMap(p => Registry.hashers.get(p.hasher))
+    maybeHasher.map(_.matches(request.identity.passwordInfo.get, currentPassword)).getOrElse(false)
   }
 
   private def execute[A](f: (SecuredRequest[A], Form[ChangeInfo]) => SimpleResult)(implicit request: SecuredRequest[A]): SimpleResult = {
@@ -74,7 +74,7 @@ trait PasswordChange extends SecureSocialController {
         ((changeInfo: ChangeInfo) => Some("", ("", "")))
     )
 
-    if ( request.user.authMethod != AuthenticationMethod.UserPassword) {
+    if ( request.identity.authMethod != AuthenticationMethod.UserPassword) {
       Forbidden
     } else {
       f(request, form)
@@ -94,7 +94,7 @@ trait PasswordChange extends SecureSocialController {
         info =>  {
           import scala.language.reflectiveCalls
           val newPasswordInfo = Registry.hashers.currentHasher.hash(info.newPassword)
-          val u = UserService.save( SocialUser(request.user).copy( passwordInfo = Some(newPasswordInfo)) )
+          val u = UserService.save( SocialUser(request.identity).copy( passwordInfo = Some(newPasswordInfo)) )
           implicit val userLang = lang(request)
           Mailer.sendPasswordChangedNotice(u)(request, userLang)
           val result = Redirect(onHandlePasswordChangeGoTo).flashing(Success -> Messages(OkMessage)(lang(request)))

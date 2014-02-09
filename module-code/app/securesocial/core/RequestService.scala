@@ -46,8 +46,8 @@ trait RequestService {
    */
   def currentUser[A](implicit request: RequestHeader):Option[Identity] = {
     request match {
-      case securedRequest: SecuredRequest[_] => Some(securedRequest.user)
-      case userAware: RequestWithUser[_] => userAware.user
+      case securedRequest: SecuredRequest[_] => Some(securedRequest.identity)
+      case userAware: RequestWithIdentity[_] => userAware.identity
       case _ => for (
             authenticator <- authenticatorFromRequest ;
             user <- userService.find(authenticator.identityId)
