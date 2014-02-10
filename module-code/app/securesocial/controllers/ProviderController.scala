@@ -19,7 +19,7 @@ package securesocial.controllers
 import play.api.mvc._
 import play.api.i18n.Messages
 import securesocial.core._
-import play.api.{Play, Logger}
+import play.api.{Play}
 import Play.current
 import providers.utils.RoutesHelper
 import securesocial.core.LoginEvent
@@ -27,12 +27,13 @@ import securesocial.core.AccessDeniedException
 import scala.Some
 import play.api.http.HeaderNames
 import securesocial.core.RequestService
+import com.typesafe.scalalogging.slf4j.Logging
 
 
 /**
  * A controller to provide the authentication entry point
  */
-class ProviderController extends SecureSocialController
+class ProviderController extends SecureSocialController with Logging
 {
   /**
    * The property that specifies the page the user is redirected to if there is no original URL saved in
@@ -110,14 +111,13 @@ class ProviderController extends SecureSocialController
           } , {
             user => if ( authenticationFlow ) {
               val saved = UserService.save(user)
+              logger.debug(s"created new account $user")
               completeAuthentication(saved, modifiedSession)
             } else {
               request.identity match {
                 case Some(currentUser) =>
                   UserService.link(currentUser, user)
-                  if ( Logger.isDebugEnabled ) {
-                    Logger.debug(s"[securesocial] linked $currentUser to $user")
-                  }
+                  logger.debug(s"linked $currentUser to $user")
                   completeAuthentication(modifiedSession)
                 case _ =>
                   Unauthorized
@@ -154,17 +154,11 @@ class ProviderController extends SecureSocialController
   }
 
   def completeAuthentication(user: Identity, session: Session)(implicit request: RequestHeader): SimpleResult = {
-    if ( Logger.isDebugEnabled ) {
-      Logger.debug("[securesocial] user logged in : [" + user + "]")
-    }
+    logger.debug("user logged in : [" + user + "]")
     val withSession = Events.fire(new LoginEvent(user)).getOrElse(session)
     authService.create(user) match {
-      case Right(authenticator) => {
-        Redirect(toUrl(withSession)).withSession(withSession -
-          RequestService.OriginalUrlKey -
-          IdentityProvider.SessionId -
-          OAuth1Provider.CacheKey).withCookies(authenticator.toCookie)
-      }
+      case Right(authenticator) =>  completeAuthentication(withSession)
+          //.withCookies(authenticator.toCookie)
       case Left(error) => {
         // improve this
         throw new RuntimeException("Error creating authenticator")
