@@ -104,9 +104,7 @@ class ProviderController extends SecureSocialController
           p.authenticate().fold( result => {
             redirectTo match {
               case Some(url) =>
-                val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
-                val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
-                result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
+                addSessionCookie(result, url)
               case _ => result
             }
           } , {
@@ -120,11 +118,7 @@ class ProviderController extends SecureSocialController
                   if ( Logger.isDebugEnabled ) {
                     Logger.debug(s"[securesocial] linked $currentUser to $user")
                   }
-                  // improve this, I'm duplicating part of the code in completeAuthentication
-                  Redirect(toUrl(modifiedSession)).withSession(modifiedSession-
-                    RequestService.OriginalUrlKey -
-                    IdentityProvider.SessionId -
-                    OAuth1Provider.CacheKey)
+                  completeAuthentication(modifiedSession)
                 case _ =>
                   Unauthorized
               }
@@ -135,14 +129,29 @@ class ProviderController extends SecureSocialController
             Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.accessDenied"))
           }
 
-//          case other: Throwable => {
-//            Logger.error("Unable to log user in. An exception was thrown", other)
-//            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
-//          }
+          case other: Throwable => {
+            Logger.error("Unable to log user in. An exception was thrown", other)
+            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
+          }
         }
       }
       case _ => NotFound
     }
+  }
+
+
+  def completeAuthentication(modifiedSession: Session): SimpleResult = {
+    // improve this, I'm duplicating part of the code in completeAuthentication
+    Redirect(toUrl(modifiedSession)).withSession(modifiedSession -
+      RequestService.OriginalUrlKey -
+      IdentityProvider.SessionId -
+      OAuth1Provider.CacheKey)
+  }
+
+  def addSessionCookie(result: SimpleResult, url: String): SimpleResult = {
+    val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
+    val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
+    result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
   }
 
   def completeAuthentication(user: Identity, session: Session)(implicit request: RequestHeader): SimpleResult = {

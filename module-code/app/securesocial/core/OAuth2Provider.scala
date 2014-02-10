@@ -93,6 +93,20 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
       )
   }
 
+  /**
+   * Get the callback URI for this provider. Replaces RoutesHelper but handles inherited
+   * ProviderControllers properly.
+   *
+   * Replaces: RoutesHelper.authenticate(id).absoluteURL(IdentityProvider.sslEnabled)
+   *
+   * @param request
+   * @return
+   */
+  def getProviderUri(request: Request[AnyContent]):String = {
+    implicit val req = request
+    Call("GET", request.path).absoluteURL(IdentityProvider.sslEnabled)
+  }
+
   def doAuth()(implicit request: Request[AnyContent]): Either[SimpleResult, SocialUser] = {
     request.queryString.get(OAuth2Constants.Error).flatMap(_.headOption).map( error => {
       error match {
@@ -131,7 +145,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
         val state = flowStateService.newFlowState(Some(sessionId))
         var params = List(
           (OAuth2Constants.ClientId, settings.clientId),
-          (OAuth2Constants.RedirectUri, RoutesHelper.authenticate(id).absoluteURL(IdentityProvider.sslEnabled)),
+          (OAuth2Constants.RedirectUri, getProviderUri(request)),
           (OAuth2Constants.ResponseType, OAuth2Constants.Code),
           (OAuth2Constants.State, state))
         settings.scope.foreach( s => { params = (OAuth2Constants.Scope, s) :: params })
