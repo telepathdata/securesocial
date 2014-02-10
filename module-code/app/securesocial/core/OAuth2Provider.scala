@@ -67,7 +67,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
       OAuth2Constants.ClientSecret -> Seq(settings.clientSecret),
       OAuth2Constants.GrantType -> Seq(OAuth2Constants.AuthorizationCode),
       OAuth2Constants.Code -> Seq(code),
-      OAuth2Constants.RedirectUri -> Seq(RoutesHelper.authenticate(id).absoluteURL(IdentityProvider.sslEnabled))
+      OAuth2Constants.RedirectUri -> Seq(getProviderUri(request))
     ) ++ settings.accessTokenUrlParams.mapValues(Seq(_))
     val call = WS.url(settings.accessTokenUrl).post(params)
     try {
@@ -102,8 +102,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
    * @param request
    * @return
    */
-  def getProviderUri(request: Request[AnyContent]):String = {
-    implicit val req = request
+  def getProviderUri(implicit request: RequestHeader):String = {
     Call("GET", request.path).absoluteURL(IdentityProvider.sslEnabled)
   }
 
@@ -119,45 +118,56 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     })
 
     request.queryString.get(OAuth2Constants.Code).flatMap(_.headOption) match {
-      case Some(code) =>
-        // we're being redirected back from the authorization server with the access code.
-        val sessionId = request.session.get(IdentityProvider.SessionId)
-        val flowStateId = request.queryString.get(OAuth2Constants.State).flatMap(_.headOption)
-        val user = if(flowStateId.isDefined && flowStateService.validateFlowState(flowStateId.get, sessionId)) {
-          val accessToken = getAccessToken(code)
-          val oauth2Info = Some(
-            OAuth2Info(accessToken.accessToken, accessToken.tokenType, accessToken.expiresIn, accessToken.refreshToken)
-          )
-          Some(SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info))
-        } else {
-          None
-        }
-        if ( Logger.isDebugEnabled ) {
-          Logger.debug("[securesocial] user = " + user)
-        }
-        user match  {
-          case Some(u) => Right(u)
-          case _ => throw new AuthenticationException()
-        }
-      case None =>
-        // There's no code in the request, this is the first step in the oauth flow
-        val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
-        val state = flowStateService.newFlowState(Some(sessionId))
-        var params = List(
-          (OAuth2Constants.ClientId, settings.clientId),
-          (OAuth2Constants.RedirectUri, getProviderUri(request)),
-          (OAuth2Constants.ResponseType, OAuth2Constants.Code),
-          (OAuth2Constants.State, state))
-        settings.scope.foreach( s => { params = (OAuth2Constants.Scope, s) :: params })
-        settings.authorizationUrlParams.foreach( e => { params = e :: params })
-        val url = settings.authorizationUrl +
-          params.map( p => URLEncoder.encode(p._1, "UTF-8") + "=" + URLEncoder.encode(p._2, "UTF-8")).mkString("?", "&", "")
-        if ( Logger.isDebugEnabled ) {
-          Logger.debug("[securesocial] authorizationUrl = %s".format(settings.authorizationUrl))
-          Logger.debug("[securesocial] redirecting to: [%s]".format(url))
-        }
-        Left(Results.Redirect( url ).withSession(request.session + (IdentityProvider.SessionId, sessionId)))
+      case Some(code) => completeOAuthFlow(request, code)
+      case None => initiateOAuthFlow(request)
     }
+  }
+
+
+  def completeOAuthFlow(implicit request: Request[AnyContent], code: String): Right[Nothing, SocialUser] = {
+    // we're being redirected back from the authorization server with the access code.
+    val sessionId = request.session.get(IdentityProvider.SessionId)
+    val flowStateId = request.queryString.get(OAuth2Constants.State).flatMap(_.headOption)
+    val identity = if (flowStateId.isDefined && flowStateService.validateFlowState(flowStateId.get, sessionId)) {
+      val accessToken = getAccessToken(code)
+      val oauth2Info = Some(
+        OAuth2Info(accessToken.accessToken, accessToken.tokenType, accessToken.expiresIn, accessToken.refreshToken)
+      )
+      Some(SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info))
+    } else {
+      None
+    }
+    if (Logger.isDebugEnabled) {
+      Logger.debug("[securesocial] user = " + identity)
+    }
+    identity match {
+      case Some(u) => Right(u)
+      case _ => throw new AuthenticationException()
+    }
+  }
+
+  def initiateOAuthFlow(implicit request: Request[AnyContent]): Left[SimpleResult, Nothing] = {
+    // There's no code in the request, this is the first step in the oauth flow
+    val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
+    val state = flowStateService.newFlowState(Some(sessionId))
+    var params = List(
+      (OAuth2Constants.ClientId, settings.clientId),
+      (OAuth2Constants.RedirectUri, getProviderUri(request)),
+      (OAuth2Constants.ResponseType, OAuth2Constants.Code),
+      (OAuth2Constants.State, state))
+    settings.scope.foreach(s => {
+      params = (OAuth2Constants.Scope, s) :: params
+    })
+    settings.authorizationUrlParams.foreach(e => {
+      params = e :: params
+    })
+    val url = settings.authorizationUrl +
+      params.map(p => URLEncoder.encode(p._1, "UTF-8") + "=" + URLEncoder.encode(p._2, "UTF-8")).mkString("?", "&", "")
+    if (Logger.isDebugEnabled) {
+      Logger.debug("[securesocial] authorizationUrl = %s".format(settings.authorizationUrl))
+      Logger.debug("[securesocial] redirecting to: [%s]".format(url))
+    }
+    Left(Results.Redirect(url).withSession(request.session +(IdentityProvider.SessionId, sessionId)))
   }
 }
 

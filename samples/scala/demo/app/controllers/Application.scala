@@ -17,11 +17,12 @@
 package controllers
 
 import play.api.mvc._
-import securesocial.core.{IdentityId, UserService, Identity, Authorization}
+import securesocial.core._
 import play.api.Play
 import service.InMemoryUserService
+import controllers.WithProvider
 
-object Application extends Controller with securesocial.core.RequestService {
+object Application extends SecureSocialController {
 
   def index = SecuredAction { implicit request =>
     Ok(views.html.index(request.user))

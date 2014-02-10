@@ -129,16 +129,21 @@ class ProviderController extends SecureSocialController
             Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.accessDenied"))
           }
 
-          case other: Throwable => {
-            Logger.error("Unable to log user in. An exception was thrown", other)
-            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
-          }
+//          case other: Throwable => {
+//            Logger.error("Unable to log user in. An exception was thrown", other)
+//            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
+//          }
         }
       }
       case _ => NotFound
     }
   }
 
+  def addSessionCookie(result: SimpleResult, url: String): SimpleResult = {
+    val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
+    val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
+    result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
+  }
 
   def completeAuthentication(modifiedSession: Session): SimpleResult = {
     // improve this, I'm duplicating part of the code in completeAuthentication
@@ -146,12 +151,6 @@ class ProviderController extends SecureSocialController
       RequestService.OriginalUrlKey -
       IdentityProvider.SessionId -
       OAuth1Provider.CacheKey)
-  }
-
-  def addSessionCookie(result: SimpleResult, url: String): SimpleResult = {
-    val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
-    val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
-    result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
   }
 
   def completeAuthentication(user: Identity, session: Session)(implicit request: RequestHeader): SimpleResult = {
