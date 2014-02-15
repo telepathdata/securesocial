@@ -10,24 +10,32 @@ class CacheFlowStateServiceSpec extends PlaySpecification {
   "the CacheFlowStateServiceSpec" should {
     "be able to store and validate a flowStateId with a sessionId" in new WithApplication {
       val sessionId = Some("mySession")
-      val flowStateId = service.newFlowState(sessionId)
-      val valid = service.validateFlowState(flowStateId, sessionId)
+      val flowState = service.newFlowState(sessionId, None)
+      val valid = service.validateFlowState(flowState.id, sessionId)
       valid mustEqual true
     }
     "be able to store and validate a flowStateId without a sessionId" in new WithApplication {
-      val flowStateId = service.newFlowState(None)
-      val valid = service.validateFlowState(flowStateId, None)
+      val flowState = service.newFlowState(None, None)
+      val valid = service.validateFlowState(flowState.id, None)
       valid mustEqual true
     }
     "be able to store and invalidate a flowStateId with a missing new sessionId" in new WithApplication {
-      val flowStateId = service.newFlowState(Some("badSession"))
-      val valid = service.validateFlowState(flowStateId, None)
+      val flowState = service.newFlowState(Some("badSession"), None)
+      val valid = service.validateFlowState(flowState.id, None)
       valid mustEqual false
     }
     "be able to store and validate a flowStateId with a bad new sessionId" in new WithApplication {
-      val flowStateId = service.newFlowState(None)
-      val valid = service.validateFlowState(flowStateId, Some("badSession"))
+      val flowState = service.newFlowState(None, None)
+      val valid = service.validateFlowState(flowState.id, Some("badSession"))
       valid mustEqual false
+    }
+    "be able to store and validate a flowStateId with an identity" in new WithApplication {
+      val flowState = service.newFlowState(None, Some(SocialUser(
+        IdentityId("test", "domain.com"), "test", "user", "test user", Some("test.user@domain.com"),
+        None, AuthenticationMethod.UserPassword)
+      ))
+      val valid = service.validateFlowState(flowState.id, None)
+      valid mustEqual true
     }
   }
 }

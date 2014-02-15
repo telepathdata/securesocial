@@ -70,7 +70,7 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @param request
    * @return
    */
-  def authenticate()(implicit request: Request[AnyContent]):Either[SimpleResult, Identity] = {
+  def authenticate()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, Identity] = {
     doAuth().fold(
       result => Left(result),
       u => Right(fillProfile(u))
@@ -113,7 +113,7 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @param request
    * @return Either a Result or a User
    */
-  def doAuth()(implicit request: Request[AnyContent]):Either[SimpleResult, SocialUser]
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, SocialUser]
 
   /**
    * Subclasses need to implement this method to populate the User object with profile

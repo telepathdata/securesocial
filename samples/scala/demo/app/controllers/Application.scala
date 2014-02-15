@@ -16,16 +16,13 @@
  */
 package controllers
 
-import play.api.mvc._
 import securesocial.core._
-import play.api.Play
 import service.InMemoryUserService
-import controllers.WithProvider
 
 object Application extends SecureSocialController {
 
   def index = SecuredAction { implicit request =>
-    Ok(views.html.index(request.user))
+    Ok(views.html.index(request.identity))
   }
 
   // a sample action using the new authorization hook
@@ -34,7 +31,7 @@ object Application extends SecureSocialController {
 //    Note: If you had a User class and returned an instance of it from UserService, this
 //          is how you would convert Identity to your own class:
 //
-//    request.user match {
+//    request.identity match {
 //      case user: User => // do whatever you need with your user class
 //      case _ => // did not get a User instance, should not happen,log error/thow exception
 //    }
@@ -45,10 +42,10 @@ object Application extends SecureSocialController {
     import com.typesafe.plugin._
     import play.api.Play.current
     val identities = use[InMemoryUserService].users.values.map {
-      case user if user.identities.exists(_.identityId == request.user.identityId) => user.identities
+      case user if user.identities.exists(_.identityId == request.identity.identityId) => user.identities
       case user => List()
     }.flatten
-    Ok(views.html.linkResult(request.user, identities))
+    Ok(views.html.linkResult(request.identity, identities))
   }
 }
 

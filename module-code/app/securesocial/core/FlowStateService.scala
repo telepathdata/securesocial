@@ -2,30 +2,35 @@ package securesocial.core
 
 import _root_.java.util.UUID
 
-/**
- * Created by erik on 2/3/14.
- */
+case class FlowState(
+  id: String,
+  ajaxMode: Boolean,
+  sessionId: Option[String],
+  mainIdentity: Option[Identity]
+)
+
 trait FlowStateService {
   /**
    * Store flowStateId, optionally binding it to sessionId
    *
-   * @param flowStateId
-   * @param sessionId
+   * @param flowState
    */
-  def storeFlowState(flowStateId:String, sessionId:Option[String]) {
+  def storeFlowState(flowState: FlowState) {
     // NO-OP by default
   }
 
   /**
    * Ensure flowStateId is valid in sessionId.
    *
-   * @param sessionId
    * @param flowStateId
+   * @param sessionId
    * @return
    */
-  def validateFlowState(flowStateId:String, sessionId:Option[String]):Boolean = {
+  def validateFlowState(flowStateId: String, sessionId: Option[String] = None):Boolean = {
     true
   }
+
+  def get(flowStateId: String): Option[FlowState]
 
   /**
    * Get (and store) a new flowStateId
@@ -33,10 +38,14 @@ trait FlowStateService {
    * @param sessionId
    * @return
    */
-  def newFlowState(sessionId:Option[String]):String = {
-    val flowStateId = UUID.randomUUID().toString
-    this.storeFlowState(flowStateId, sessionId)
-    flowStateId
+  def newFlowState(
+    sessionId:Option[String],
+    mainIdentity: Option[Identity],
+    ajaxMode:Boolean = false
+  ):FlowState = {
+    var flowState = FlowState(UUID.randomUUID().toString, ajaxMode, sessionId, mainIdentity)
+    this.storeFlowState(flowState)
+    flowState
   }
 }
 
