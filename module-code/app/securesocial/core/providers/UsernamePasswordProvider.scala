@@ -41,7 +41,7 @@ class UsernamePasswordProvider(application: Application) extends IdentityProvide
 
   val InvalidCredentials = "securesocial.login.invalidCredentials"
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, SocialUser] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, FlowState] = {
     val form = UsernamePasswordProvider.loginForm.bindFromRequest()
     form.fold(
       errors => Left(badRequest(errors)(request)),
@@ -51,7 +51,7 @@ class UsernamePasswordProvider(application: Application) extends IdentityProvide
           user <- UserService.find(userId) ;
           pinfo <- user.passwordInfo ;
           hasher <- Registry.hashers.get(pinfo.hasher) if hasher.matches(pinfo, credentials._2)
-        ) yield Right(SocialUser(user))
+        ) yield Right(FlowState(newIdentity=Some(SocialUser(user))))
         result.getOrElse(
           Left(badRequest(UsernamePasswordProvider.loginForm, Some(InvalidCredentials)))
         )

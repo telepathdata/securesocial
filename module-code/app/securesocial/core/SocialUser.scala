@@ -16,6 +16,8 @@
  */
 package securesocial.core
 
+import org.joda.time.DateTime
+
 
 /**
  * This trait represents a user.  Using this trait you can return your own object from the
@@ -85,8 +87,22 @@ case class OAuth1Info(token: String, secret: String)
  * @param expiresIn the number of seconds before the token expires
  * @param refreshToken the refresh token
  */
-case class OAuth2Info(accessToken: String, tokenType: Option[String] = None,
-                      expiresIn: Option[Int] = None, refreshToken: Option[String] = None)
+case class OAuth2Info(accessToken: String,
+                      tokenType: Option[String] = None,
+                      expiresIn: Option[Int] = None,
+                      refreshToken: Option[String] = None,
+                      granted: Option[DateTime] = Some(DateTime.now())
+                      ) {
+  def isExpired:Boolean = {
+    val expired = for {
+      time <- granted
+      offset <- expiresIn
+    } yield {
+      time.plusSeconds(offset).isAfter(DateTime.now())
+    }
+    expired.getOrElse(true)
+  }
+}
 
 /**
  * The password details

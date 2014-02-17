@@ -3,10 +3,11 @@ package securesocial.core
 import _root_.java.util.UUID
 
 case class FlowState(
-  id: String,
-  ajaxMode: Boolean,
-  sessionId: Option[String],
-  mainIdentity: Option[Identity]
+  id: String = "",
+  ajaxMode: Boolean = false,
+  sessionId: Option[String] = None,
+  mainIdentity: Option[Identity] = None,
+  newIdentity: Option[Identity] = None
 )
 
 trait FlowStateService {
@@ -43,7 +44,7 @@ trait FlowStateService {
     mainIdentity: Option[Identity],
     ajaxMode:Boolean = false
   ):FlowState = {
-    var flowState = FlowState(UUID.randomUUID().toString, ajaxMode, sessionId, mainIdentity)
+    var flowState = FlowState(UUID.randomUUID().toString, ajaxMode, sessionId, mainIdentity, None)
     this.storeFlowState(flowState)
     flowState
   }

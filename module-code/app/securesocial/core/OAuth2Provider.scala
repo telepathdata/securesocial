@@ -26,6 +26,7 @@ import play.api.libs.ws.Response
 import scala.Some
 import com.typesafe.scalalogging.slf4j.Logging
 import play.api.libs.json.Json
+import org.joda.time.DateTime
 
 /**
  * Base class for all OAuth2 providers
@@ -82,6 +83,30 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     }
   }
 
+  def refresh(info: OAuth2Info): OAuth2Info = {
+    logger.debug("Refreshing " + info)
+    val newInfo = for {
+      refreshToken <- info.refreshToken
+    } yield {
+      val params = Map(
+        OAuth2Constants.ClientId -> Seq(settings.clientId),
+        OAuth2Constants.ClientSecret -> Seq(settings.clientSecret),
+        OAuth2Constants.GrantType -> Seq(OAuth2Constants.RefreshToken),
+        OAuth2Constants.RefreshToken -> Seq(refreshToken)
+      )
+      val call = WS.url(settings.accessTokenUrl).post(params)
+      val json = awaitResult(call).json
+      logger.debug("Got json" + json)
+      info.copy(
+        accessToken = (json \ OAuth2Constants.AccessToken).as[String],
+        tokenType = (json \ OAuth2Constants.TokenType).asOpt[String],
+        expiresIn = (json \ OAuth2Constants.ExpiresIn).asOpt[Int],
+        granted = Some(DateTime.now())
+      )
+    }
+    newInfo.getOrElse(info)
+  }
+
   protected def buildInfo(response: Response): OAuth2Info = {
       val json = response.json
       logger.debug("got json back [" + json + "]")
@@ -106,7 +131,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     Call("GET", request.path).absoluteURL(IdentityProvider.sslEnabled)
   }
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, SocialUser] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, FlowState] = {
     request.queryString.get(OAuth2Constants.Error).flatMap(_.headOption).map( error => {
       error match {
         case OAuth2Constants.AccessDenied => throw new AccessDeniedException()
@@ -133,6 +158,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
       (OAuth2Constants.ClientId, settings.clientId),
       (OAuth2Constants.RedirectUri, getProviderUri(request, ajaxMode)),
       (OAuth2Constants.ResponseType, OAuth2Constants.Code),
+      (OAuth2Constants.AccessType, OAuth2Constants.Offline),
       (OAuth2Constants.State, flowState.id))
     settings.scope.foreach(s => {
       params = (OAuth2Constants.Scope, s) :: params
@@ -151,43 +177,27 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     }
   }
 
-  def completeOAuthFlow(implicit request: Request[AnyContent], code: String): Right[Nothing, SocialUser] = {
+  def completeOAuthFlow(implicit request: Request[AnyContent], code: String): Right[Nothing, FlowState] = {
     // we're being redirected back from the authorization server with the access code.
-    val sessionId = request.session.get(IdentityProvider.SessionId)
     val flowStateId = request.queryString.get(OAuth2Constants.State).flatMap(_.headOption)
-    val flowState = flowStateService.get(flowStateId.get)
+    var flowState = flowStateService.get(flowStateId.get).getOrElse(throw new AuthenticationException())
     logger.debug("completing OAuth flow: " + flowState)
-    val newIdentity = if (
-      flowState.isDefined &&
-        !flowState.get.ajaxMode &&
-        !flowStateService.validateFlowState(flowStateId.get, sessionId)) {
-      None
-    } else {
-      val accessToken = getAccessToken(code)
-      val oauth2Info = Some(
-        OAuth2Info(accessToken.accessToken, accessToken.tokenType, accessToken.expiresIn, accessToken.refreshToken)
-      )
+    val oauth2Info = Some(getAccessToken(code))
+    flowState = flowState.copy(newIdentity =
       Some(SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info))
-    }
-    // TODO: refactor linking code someplace
-    if(flowState.isDefined && flowState.get.mainIdentity.isDefined && newIdentity.isDefined) {
-      val currentUser = flowState.get.mainIdentity.get
-      UserService.link(currentUser, newIdentity.get)
-      logger.debug("linking user " + currentUser + " to new user " + newIdentity.get)
-    } else {
-      logger.debug("creating new user " + newIdentity.get)
-    }
-    newIdentity match {
-      case Some(u) => Right(u)
-      case _ => throw new AuthenticationException()
-    }
+    )
+    Right(flowState)
   }
 }
 
-case class OAuth2Settings(authorizationUrl: String, accessTokenUrl: String, clientId: String,
-                          clientSecret: String, scope: Option[String],
-                          authorizationUrlParams: Map[String, String], accessTokenUrlParams: Map[String, String]
-                           )
+case class OAuth2Settings(authorizationUrl: String,
+                          accessTokenUrl: String,
+                          clientId: String,
+                          clientSecret: String,
+                          scope: Option[String],
+                          authorizationUrlParams: Map[String, String],
+                          accessTokenUrlParams: Map[String, String]
+                          )
 
 object OAuth2Settings {
   val AuthorizationUrl = "authorizationUrl"
@@ -209,10 +219,14 @@ object OAuth2Constants {
   val GrantType = "grant_type"
   val AuthorizationCode = "authorization_code"
   val AccessToken = "access_token"
+  val AccessType = "access_type"
+  val Online = "online"
+  val Offline = "offline"
   val Error = "error"
   val Code = "code"
   val TokenType = "token_type"
   val ExpiresIn = "expires_in"
   val RefreshToken = "refresh_token"
+  val IdToken = "id_token"
   val AccessDenied = "access_denied"
 }

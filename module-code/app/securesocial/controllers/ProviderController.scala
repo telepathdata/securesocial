@@ -96,47 +96,53 @@ class ProviderController extends SecureSocialController with Logging
   }
 
   private def handleAuth(provider: String, redirectTo: Option[String]) = UserAwareAction { implicit request =>
-    val authenticationFlow = request.identity.isEmpty
     val modifiedSession = overrideOriginalUrl(session, redirectTo)
 
     Registry.providers.get(provider) match {
       case Some(p) => {
         try {
-          p.authenticate().fold( result => {
-            redirectTo match {
-              case Some(url) =>
-                addSessionCookie(result, url)
-              case _ => result
-            }
-          } , {
-            user => if ( authenticationFlow ) {
-              val saved = UserService.save(user)
-              logger.debug(s"created new account $user")
-              completeAuthentication(saved, modifiedSession)
-            } else {
-              request.identity match {
-                case Some(currentUser) =>
-                  UserService.link(currentUser, user)
-                  logger.debug(s"linked $currentUser to $user")
-                  completeAuthentication(modifiedSession)
-                case _ =>
-                  Unauthorized
-              }
-            }
-          })
+          p.authenticate().fold(
+            result => handleAuthPhase1(redirectTo, result),
+            flowState => handleAuthPhase2(flowState, modifiedSession)
+          )
         } catch {
           case ex: AccessDeniedException => {
             Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.accessDenied"))
           }
-
-//          case other: Throwable => {
-//            Logger.error("Unable to log user in. An exception was thrown", other)
-//            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
-//          }
+          case other: Throwable => {
+            logger.error("Unable to log user in. An exception was thrown", other)
+            Redirect(RoutesHelper.login()).flashing("error" -> Messages("securesocial.login.errorLoggingIn"))
+          }
         }
       }
       case _ => NotFound
     }
+  }
+
+
+  def handleAuthPhase1(redirectTo: Option[String], result: SimpleResult): SimpleResult = {
+    redirectTo match {
+      case Some(url) =>
+        addSessionCookie(result, url)
+      case _ => result
+    }
+  }
+
+  def handleAuthPhase2(flowState: FlowState, modifiedSession: Session)
+                      (implicit request: RequestHeader): SimpleResult = {
+    logger.debug("handleAuthPhase2")
+    var f: FlowState = flowState
+    if (f.mainIdentity.isDefined) {
+      f = f.copy(mainIdentity = Some(UserService.save(f.mainIdentity.get)))
+    }
+    if (f.newIdentity.isDefined) {
+      f = f.copy(newIdentity = Some(UserService.save(f.newIdentity.get)))
+    }
+    if (f.mainIdentity.isDefined && f.newIdentity.isDefined) {
+      UserService.link(f.mainIdentity.get, f.newIdentity.get)
+      logger.debug(s"linked $f.mainIdentity to $f.newIdentity")
+    }
+    completeAuthentication(f, modifiedSession)
   }
 
   def addSessionCookie(result: SimpleResult, url: String): SimpleResult = {
@@ -145,20 +151,17 @@ class ProviderController extends SecureSocialController with Logging
     result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
   }
 
-  def completeAuthentication(modifiedSession: Session): SimpleResult = {
-    // improve this, I'm duplicating part of the code in completeAuthentication
-    Redirect(toUrl(modifiedSession)).withSession(modifiedSession -
-      RequestService.OriginalUrlKey -
-      IdentityProvider.SessionId -
-      OAuth1Provider.CacheKey)
-  }
-
-  def completeAuthentication(user: Identity, session: Session)(implicit request: RequestHeader): SimpleResult = {
-    logger.debug("user logged in : [" + user + "]")
-    val withSession = Events.fire(new LoginEvent(user)).getOrElse(session)
-    authService.create(user) match {
-      case Right(authenticator) =>  completeAuthentication(withSession)
-          //.withCookies(authenticator.toCookie)
+  def completeAuthentication(flowState: FlowState, session: Session)
+                            (implicit request: RequestHeader): SimpleResult = {
+    logger.debug("user logged in : [" + flowState.newIdentity + "]")
+    val withSession = Events.fire(new LoginEvent(flowState.newIdentity.get)).getOrElse(session)
+    authService.create(flowState.newIdentity.get) match {
+      case Right(authenticator) =>
+        Redirect(toUrl(withSession)).withSession(withSession-
+          RequestService.OriginalUrlKey -
+          IdentityProvider.SessionId -
+          OAuth1Provider.CacheKey)
+          .withCookies(authenticator.toCookie)
       case Left(error) => {
         // improve this
         throw new RuntimeException("Error creating authenticator")

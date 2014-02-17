@@ -53,7 +53,7 @@ class FacebookProvider(application: Application) extends OAuth2Provider(applicat
     }
   }
 
-  def fillProfile(user: SocialUser) = {
+  def fillProfile(user: SocialUser): SocialUser = {
     val accessToken = user.oAuth2Info.get.accessToken
     val call = WS.url(MeApi + accessToken).get()
 
@@ -77,7 +77,6 @@ class FacebookProvider(application: Application) extends OAuth2Provider(applicat
           val picture = (me \ Picture)
           val avatarUrl = (picture \ Data \ Url).asOpt[String]
           val email = ( me \ Email).as[String]
-
           user.copy(
             identityId = IdentityId(userId, id),
             firstName = firstName,

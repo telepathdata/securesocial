@@ -53,7 +53,7 @@ abstract class OAuth1Provider(application: Application) extends IdentityProvider
   }
 
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, SocialUser] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, FlowState] = {
     if ( request.queryString.get("denied").isDefined ) {
       // the user did not grant access to the account
       throw new AccessDeniedException()
@@ -71,10 +71,10 @@ abstract class OAuth1Provider(application: Application) extends IdentityProvider
           case Right(token) =>
             Cache.remove(cacheKey)
             Right(
-              SocialUser(
+              FlowState(newIdentity=Some(SocialUser(
                 IdentityId("", id), "", "", "", None, None, authMethod,
                 oAuth1Info = Some(OAuth1Info(token.token, token.secret))
-              )
+              )))
             )
           case Left(oauthException) =>
             Logger.error("[securesocial] error retrieving access token", oauthException)

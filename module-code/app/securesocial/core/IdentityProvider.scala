@@ -70,10 +70,10 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @param request
    * @return
    */
-  def authenticate()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, Identity] = {
+  def authenticate()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, FlowState] = {
     doAuth().fold(
       result => Left(result),
-      u => Right(fillProfile(u))
+      flowState => Right(flowState.copy(newIdentity = Some(fillProfile(SocialUser(flowState.newIdentity.get)))))
     )
   }
 
@@ -108,21 +108,21 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
 
   /**
    * Subclasses need to implement the authentication logic. This method needs to return
-   * a User object that then gets passed to the fillProfile method
+   * a FlowState object that then gets passed to the fillProfile method
    *
    * @param request
-   * @return Either a Result or a User
+   * @return Either a Result or a FlowState
    */
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, SocialUser]
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, FlowState]
 
   /**
    * Subclasses need to implement this method to populate the User object with profile
    * information from the service provider.
    *
-   * @param user The user object to be populated
+   * @param identity The identity object to be populated
    * @return A copy of the user object with the new values set
    */
-  def fillProfile(user: SocialUser):SocialUser
+  def fillProfile(identity: SocialUser): SocialUser
 
   protected def throwMissingPropertiesException() {
     val msg = "[securesocial] Missing properties for provider '%s'. Verify your configuration file is properly set.".format(id)

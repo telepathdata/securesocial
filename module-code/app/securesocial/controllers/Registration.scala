@@ -246,7 +246,7 @@ trait Registration extends Controller {
             }
             val eventSession = Events.fire(new SignUpEvent(user)).getOrElse(session)
             if ( UsernamePasswordProvider.signupSkipLogin ) {
-              ProviderController.completeAuthentication(user, eventSession).flashing(Success -> Messages(SignUpDone))
+              ProviderController.completeAuthentication(FlowState(newIdentity=Some(user)), eventSession).flashing(Success -> Messages(SignUpDone))
             } else {
               Redirect(onHandleSignUpGoTo).flashing(Success -> Messages(SignUpDone)).withSession(eventSession)
             }
