@@ -98,7 +98,9 @@ case class OAuth2Info(accessToken: String,
       time <- granted
       offset <- expiresIn
     } yield {
-      time.plusSeconds(offset).isAfter(DateTime.now())
+      val expireTime = time.plusSeconds(offset)
+      val now = DateTime.now()
+      expireTime.isBefore(now)
     }
     expired.getOrElse(true)
   }
