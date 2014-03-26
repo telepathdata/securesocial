@@ -3,18 +3,58 @@ package securesocial.core
 import play.api.mvc.{Request, Result, RequestHeader}
 import play.api.libs.oauth.ServiceInfo
 import play.api.http.HeaderNames
+import org.apache.commons.codec.binary.{StringUtils, Base64}
+import securesocial.core.providers.UsernamePasswordProvider
 
 trait RequestService {
   def userService: UserService = UserService
   def authService = AuthenticatorService
+  def identityService = UserService
   val OriginalUrlKey = "original-url"
 
+  /**
+   * Extract an authorization token from a request
+   *
+   * @param request
+   * @return
+   */
   def tokenFromRequest(implicit request: RequestHeader): Option[String] = {
     request.cookies.get(authService.cookieName) map { _.value }
   }
 
+  /**
+   * Extract HTTP Basic parameters from a request
+   *
+   * @param request
+   * @return
+   */
+
+  def basicParamsFromRequest(implicit request: RequestHeader): Option[(String, String)] = {
+    request.headers.get("Authorization") match {
+      case None => None
+      case Some(header:String) =>
+        if (header.contains("Basic")) {
+          val token = header.split("Basic ")(1)
+          val tokenStr:String = StringUtils.newStringUtf8(Base64.decodeBase64(token.getBytes))
+          val splits = tokenStr.split(":")
+          val user = splits(0)
+          val pass = splits(1)
+          Some((user,pass))
+        } else {
+          None
+        }
+    }
+  }
+
+
+  /**
+   * Get an authenticator from a given request
+   *
+   * @param request
+   * @return
+   */
   def authenticatorFromRequest(implicit request: RequestHeader): Option[Authenticator] = {
-    val result = for {
+    val authenticator = for {
       token <- tokenFromRequest
       maybeAuthenticator <- authService.find(token).fold(e => None, Some(_))
       authenticator <- maybeAuthenticator
@@ -22,7 +62,7 @@ trait RequestService {
       authenticator
     }
 
-    result match {
+    authenticator match {
       case Some(a) => {
         if (!a.isValid) {
           authService.delete(a.id)
@@ -48,14 +88,75 @@ trait RequestService {
     request match {
       case securedRequest: SecuredRequest[_] => Some(securedRequest.identity)
       case userAware: RequestWithIdentity[_] => userAware.identity
-      case _ => for (
-            authenticator <- authenticatorFromRequest ;
-            user <- userService.find(authenticator.identityId)
-          ) yield {
-            user
-          }
+      case _ =>
+        // do token auth
+        for (
+          authenticator <- authenticatorFromRequest ;
+          user <- userService.find(authenticator.identityId)
+        ) yield {
+          return Some(user)
+        }
+        // do basic auth
+        basicParamsFromRequest match {
+          case None => None
+          case Some(t: (String,String)) => login(t._1, t._2)
+        }
     }
   }
+
+  /**
+   * Touch an authenticator, causing it's expiration date to be moved forward
+   * @param authenticator
+   */
+  def touch(authenticator: Authenticator) {
+    authService.save(authenticator.touch)
+  }
+
+  /**
+   * Retrieve an identity record from a request, if possible.
+   *
+   * @param request
+   * @return
+   */
+  def identityFromRequest(implicit request: RequestHeader): Option[Identity] = {
+    val identity = for (
+      authenticator <- authenticatorFromRequest ;
+      identity <- identityService.find(authenticator.identityId)
+    ) yield {
+      touch(authenticator)
+      identity
+    }
+
+    val identity2 = identity match {
+      case Some(identity:Identity) => Some(identity)
+      case None =>
+        basicParamsFromRequest match {
+          case None => None
+          case Some(t: (String,String)) => login(t._1, t._2)
+        }
+    }
+    identity2
+  }
+
+
+  /**
+   * Get an identity, if possible, from an email and password
+   *
+   * @param email
+   * @param password
+   * @return
+   */
+  def login(email:String, password:String): Option[Identity] = {
+    for {
+      identity <- UserService.findByEmailAndProvider(email, UsernamePasswordProvider.UsernamePassword)
+      pInfo <- identity.passwordInfo
+      hasher <- Registry.hashers.get(pInfo.hasher)
+      if hasher.matches(pInfo, password)
+    } yield {
+      identity
+    }
+  }
+
 
   /**
    * Returns the ServiceInfo needed to sign OAuth1 requests.

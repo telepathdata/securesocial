@@ -105,15 +105,15 @@ trait SecureSocialController extends Controller {
   class SecuredActionBuilder[A](ajaxCall: Boolean = false, authorize: Option[Authorization] = None)
     extends ActionBuilder[({ type R[A] = SecuredRequest[A] })#R] {
 
+
+
     def invokeSecuredBlock[A](ajaxCall: Boolean, authorize: Option[Authorization], request: Request[A],
                               block: SecuredRequest[A] => Future[SimpleResult]): Future[SimpleResult] =
     {
       implicit val req = request
       val result = for (
-        authenticator <- requestService.authenticatorFromRequest ;
-        identity <- identityService.find(authenticator.identityId)
+        identity <- requestService.identityFromRequest
       ) yield {
-        touch(authenticator)
         if ( authorize.isEmpty || authorize.get.isAuthorized(identity)) {
           block(SecuredRequest(identity, request))
         } else {
@@ -156,19 +156,9 @@ trait SecureSocialController extends Controller {
                                  block: (RequestWithIdentity[A]) => Future[SimpleResult]): Future[SimpleResult] =
     {
       implicit val req = request
-      val identity = for (
-        authenticator <- requestService.authenticatorFromRequest ;
-        identity <- identityService.find(authenticator.identityId)
-      ) yield {
-        touch(authenticator)
-        identity
-      }
+      val identity = requestService.identityFromRequest
       block(RequestWithIdentity(identity, request))
     }
-  }
-
-  def touch(authenticator: Authenticator) {
-    AuthenticatorService.save(authenticator.touch)
   }
 }
 

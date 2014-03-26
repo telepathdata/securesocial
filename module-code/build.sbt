@@ -6,6 +6,7 @@ version := "master-SNAPSHOT"
 
 libraryDependencies ++= Seq(
   cache,
+  "commons-codec" % "commons-codec" % "1.9",
   "com.typesafe" %% "scalalogging-slf4j" % "1.0.1",
   "com.typesafe" %% "play-plugins-util" % "2.2.0",
   "com.typesafe" %% "play-plugins-mailer" % "2.2.0",
