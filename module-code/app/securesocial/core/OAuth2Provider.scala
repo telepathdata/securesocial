@@ -152,6 +152,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     // There's no code in the request, this is the first step in the oauth flow
     val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
     val ajaxMode = request.getQueryString("mode").getOrElse("redirect") == "ajax"
+    val email = request.getQueryString("email").getOrElse("")
     val flowState = flowStateService.newFlowState(Some(sessionId), request.identity, ajaxMode)
     logger.debug("initiating OAuth flow: " + flowState)
     var params = List(
@@ -159,7 +160,8 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
       (OAuth2Constants.RedirectUri, getProviderUri(request, ajaxMode)),
       (OAuth2Constants.ResponseType, OAuth2Constants.Code),
       (OAuth2Constants.AccessType, OAuth2Constants.Offline),
-      (OAuth2Constants.State, flowState.id))
+      (OAuth2Constants.State, flowState.id),
+      (OAuth2Constants.LoginHint,email))
     settings.scope.foreach(s => {
       params = (OAuth2Constants.Scope, s) :: params
     })
@@ -229,4 +231,5 @@ object OAuth2Constants {
   val RefreshToken = "refresh_token"
   val IdToken = "id_token"
   val AccessDenied = "access_denied"
+  val LoginHint = "login_hint"
 }
