@@ -8,8 +8,8 @@ import securesocial.core.providers.UsernamePasswordProvider
 
 trait RequestService {
   def userService: UserService = UserService
-  def authService = AuthenticatorService
-  def identityService = UserService
+  def authService: AuthenticatorService = AuthenticatorService
+  def identityService:UserService = UserService
   val OriginalUrlKey = "original-url"
 
   /**
