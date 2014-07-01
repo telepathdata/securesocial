@@ -21,7 +21,7 @@ import play.api.cache.Cache
 import play.api.libs.oauth.{RequestToken, ConsumerKey, OAuth, ServiceInfo}
 import play.api.{Application, Logger, Play}
 import providers.utils.RoutesHelper
-import play.api.mvc.{SimpleResult, AnyContent, Request}
+import play.api.mvc.{Result, AnyContent, Request}
 import play.api.mvc.Results.Redirect
 import Play.current
 
@@ -53,7 +53,7 @@ abstract class OAuth1Provider(application: Application) extends IdentityProvider
   }
 
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[SimpleResult, FlowState] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]):Either[Result, FlowState] = {
     if ( request.queryString.get("denied").isDefined ) {
       // the user did not grant access to the account
       throw new AccessDeniedException()

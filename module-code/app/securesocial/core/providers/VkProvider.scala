@@ -1,5 +1,6 @@
 package securesocial.core.providers
 
+import play.api.Play.current
 import play.api.libs.ws.WS
 import play.api.{Application, Logger}
 import play.api.libs.json.JsObject

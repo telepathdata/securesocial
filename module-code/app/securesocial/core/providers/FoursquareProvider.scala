@@ -17,6 +17,7 @@
 package securesocial.core.providers
 
 import securesocial.core._
+import play.api.Play.current
 import play.api.{Logger, Application}
 import securesocial.core.IdentityId
 import securesocial.core.SocialUser

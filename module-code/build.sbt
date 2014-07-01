@@ -3,11 +3,12 @@ name := "SecureSocial"
 version := "master-SNAPSHOT"
 
 libraryDependencies ++= Seq(
+  ws,
   cache,
   "commons-codec" % "commons-codec" % "1.9",
-  "com.typesafe" %% "scalalogging-slf4j" % "1.0.1",
-  "com.typesafe" %% "play-plugins-util" % "2.2.0",
-  "com.typesafe" %% "play-plugins-mailer" % "2.2.0",
+  "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2",
+  "com.typesafe.play.plugins" %% "play-plugins-util" % "2.3.0",
+  "com.typesafe.play.plugins" %% "play-plugins-mailer" % "2.3.0",
   "org.mindrot" % "jbcrypt" % "0.3m"
 )
 
@@ -58,6 +59,8 @@ pomExtra := (
     </developer>
   </developers>
 )
+
+scalaVersion := "2.11.1"
 
 scalacOptions := Seq("-feature", "-deprecation",  "-target:jvm-1.7")
 

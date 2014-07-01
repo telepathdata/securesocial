@@ -23,7 +23,7 @@ import play.api.Logger
 import play.api.libs.json.Json
 import scala.concurrent.Future
 import scala.Some
-import play.api.mvc.SimpleResult
+import play.api.mvc.Result
 
 /**
  * A request that adds the User for the current call
@@ -56,11 +56,11 @@ trait SecureSocialController extends Controller {
    * @tparam A
    * @return
    */
-  private def ajaxCallNotAuthenticated[A](implicit request: Request[A]): SimpleResult = {
+  private def ajaxCallNotAuthenticated[A](implicit request: Request[A]): Result = {
     Unauthorized(Json.toJson(Map("error"->"Credentials required"))).as(JSON)
   }
 
-  private def ajaxCallNotAuthorized[A](implicit request: Request[A]): SimpleResult = {
+  private def ajaxCallNotAuthorized[A](implicit request: Request[A]): Result = {
     Forbidden( Json.toJson(Map("error" -> "Not authorized"))).as(JSON)
   }
 
@@ -108,7 +108,7 @@ trait SecureSocialController extends Controller {
 
 
     def invokeSecuredBlock[A](ajaxCall: Boolean, authorize: Option[Authorization], request: Request[A],
-                              block: SecuredRequest[A] => Future[SimpleResult]): Future[SimpleResult] =
+                              block: SecuredRequest[A] => Future[Result]): Future[Result] =
     {
       implicit val req = request
       val result = for (
@@ -136,14 +136,14 @@ trait SecureSocialController extends Controller {
         } else {
           Redirect(RoutesHelper.login().absoluteURL(IdentityProvider.sslEnabled))
             .flashing("error" -> Messages("securesocial.loginRequired"))
-            .withSession(session + (requestService.OriginalUrlKey -> request.uri)
+            .withSession(request.session + (requestService.OriginalUrlKey -> request.uri)
           )
         }
         Future.successful(response.discardingCookies(authService.discardingCookie))
       })
     }
 
-    def invokeBlock[A](request: Request[A], block: SecuredRequest[A] => Future[SimpleResult]) =
+    def invokeBlock[A](request: Request[A], block: SecuredRequest[A] => Future[Result]) =
        invokeSecuredBlock(ajaxCall, authorize, request, block)
   }
 
@@ -152,8 +152,8 @@ trait SecureSocialController extends Controller {
    * An action that adds the current user in the request if it's available.
    */
   object UserAwareAction extends ActionBuilder[RequestWithIdentity] {
-    protected def invokeBlock[A](request: Request[A],
-                                 block: (RequestWithIdentity[A]) => Future[SimpleResult]): Future[SimpleResult] =
+    def invokeBlock[A](request: Request[A],
+                                 block: (RequestWithIdentity[A]) => Future[Result]): Future[Result] =
     {
       implicit val req = request
       val identity = requestService.identityFromRequest

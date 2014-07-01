@@ -17,7 +17,7 @@
 package securesocial.controllers
 
 import securesocial.core._
-import play.api.mvc.{SimpleResult, AnyContent, Controller}
+import play.api.mvc.{Result, AnyContent, Controller}
 import com.typesafe.plugin._
 import play.api.Play
 import Play.current
@@ -59,7 +59,7 @@ trait PasswordChange extends SecureSocialController {
     maybeHasher.map(_.matches(request.identity.passwordInfo.get, currentPassword)).getOrElse(false)
   }
 
-  private def execute[A](f: (SecuredRequest[A], Form[ChangeInfo]) => SimpleResult)(implicit request: SecuredRequest[A]): SimpleResult = {
+  private def execute[A](f: (SecuredRequest[A], Form[ChangeInfo]) => Result)(implicit request: SecuredRequest[A]): Result = {
     val form = Form[ChangeInfo](
       mapping(
         CurrentPassword -> nonEmptyText.verifying(
@@ -95,9 +95,9 @@ trait PasswordChange extends SecureSocialController {
           import scala.language.reflectiveCalls
           val newPasswordInfo = Registry.hashers.currentHasher.hash(info.newPassword)
           val u = UserService.save( SocialUser(request.identity).copy( passwordInfo = Some(newPasswordInfo)) )
-          implicit val userLang = lang(request)
+          implicit val userLang = request.acceptLanguages(0)
           Mailer.sendPasswordChangedNotice(u)(request, userLang)
-          val result = Redirect(onHandlePasswordChangeGoTo).flashing(Success -> Messages(OkMessage)(lang(request)))
+          val result = Redirect(onHandlePasswordChangeGoTo).flashing(Success -> Messages(OkMessage)(userLang))
           Events.fire(new PasswordChangeEvent(u))(request).map( result.withSession(_)).getOrElse(result)
         }
       )

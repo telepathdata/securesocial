@@ -17,11 +17,12 @@
 package securesocial.core.providers
 
 import securesocial.core._
+import play.api.Play.current
 import play.api.{Logger, Application}
 import play.api.libs.ws.WS
 import securesocial.core.IdentityId
 import securesocial.core.SocialUser
-import play.api.libs.ws.Response
+import play.api.libs.ws.WSResponse
 import securesocial.core.AuthenticationException
 import scala.Some
 
@@ -41,7 +42,7 @@ class GitHubProvider(application: Application) extends OAuth2Provider(applicatio
 
   override def id = GitHubProvider.GitHub
 
-  override protected def buildInfo(response: Response): OAuth2Info = {
+  override protected def buildInfo(response: WSResponse): OAuth2Info = {
     val values: Map[String, String] = response.body.split("&").map( _.split("=") ).withFilter(_.size == 2)
         .map( r => (r(0), r(1)))(collection.breakOut)
     val accessToken = values.get(OAuth2Constants.AccessToken)

@@ -28,7 +28,7 @@ import securesocial.controllers.TemplatesPlugin
 import org.joda.time.DateTime
 import securesocial.core.IdentityId
 import scala.Some
-import play.api.mvc.SimpleResult
+import play.api.mvc.Result
 
 /**
  * A username password provider
@@ -41,7 +41,7 @@ class UsernamePasswordProvider(application: Application) extends IdentityProvide
 
   val InvalidCredentials = "securesocial.login.invalidCredentials"
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, FlowState] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[Result, FlowState] = {
     val form = UsernamePasswordProvider.loginForm.bindFromRequest()
     form.fold(
       errors => Left(badRequest(errors)(request)),
@@ -59,7 +59,7 @@ class UsernamePasswordProvider(application: Application) extends IdentityProvide
     )
   }
 
-  private def badRequest[A](f: Form[(String,String)], msg: Option[String] = None)(implicit request: Request[AnyContent]): SimpleResult = {
+  private def badRequest[A](f: Form[(String,String)], msg: Option[String] = None)(implicit request: Request[AnyContent]): Result = {
     Results.BadRequest(use[TemplatesPlugin].getLoginPage(f, msg))
   }
 

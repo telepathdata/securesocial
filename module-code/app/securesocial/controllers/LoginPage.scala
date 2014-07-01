@@ -76,7 +76,7 @@ class LoginPage extends SecureSocialController
     }
     val result = Redirect(to).discardingCookies(authService.discardingCookie)
     user match {
-      case Some(u) => result.withSession( Events.fire(new LogoutEvent(u)).getOrElse(session) )
+      case Some(u) => result.withSession( Events.fire(new LogoutEvent(u)).getOrElse(request.session) )
       case None => result
     }
   }

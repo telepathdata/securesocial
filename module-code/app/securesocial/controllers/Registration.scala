@@ -244,7 +244,7 @@ trait Registration extends Controller {
             if ( UsernamePasswordProvider.sendWelcomeEmail ) {
               Mailer.sendWelcomeEmail(saved)
             }
-            val eventSession = Events.fire(new SignUpEvent(user)).getOrElse(session)
+            val eventSession = Events.fire(new SignUpEvent(user)).getOrElse(request.session)
             if ( UsernamePasswordProvider.signupSkipLogin ) {
               ProviderController.completeAuthentication(FlowState(newIdentity=Some(user)), eventSession).flashing(Success -> Messages(SignUpDone))
             } else {

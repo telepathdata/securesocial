@@ -22,9 +22,9 @@ import play.api.Application
 import play.api.mvc._
 import play.api.libs.ws.WS
 import scala.collection.JavaConversions._
-import play.api.libs.ws.Response
-import scala.Some
-import com.typesafe.scalalogging.slf4j.Logging
+import play.api.libs.ws.WSResponse
+import play.api.Play.current
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.libs.json.Json
 import org.joda.time.DateTime
 
@@ -33,7 +33,7 @@ import org.joda.time.DateTime
  */
 abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = true)
   extends IdentityProvider(application)
-  with Logging
+  with LazyLogging
 {
   val flowStateService:FlowStateService = CacheFlowStateService
   val settings = createSettings()
@@ -107,7 +107,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     newInfo.getOrElse(info)
   }
 
-  protected def buildInfo(response: Response): OAuth2Info = {
+  protected def buildInfo(response: WSResponse): OAuth2Info = {
       val json = response.json
       logger.debug("got json back [" + json + "]")
       OAuth2Info(
@@ -131,7 +131,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     Call("GET", request.path).absoluteURL(IdentityProvider.sslEnabled)
   }
 
-  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[SimpleResult, FlowState] = {
+  def doAuth()(implicit request: RequestWithIdentity[AnyContent]): Either[Result, FlowState] = {
     request.queryString.get(OAuth2Constants.Error).flatMap(_.headOption).map( error => {
       error match {
         case OAuth2Constants.AccessDenied => throw new AccessDeniedException()
@@ -148,7 +148,7 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     }
   }
 
-  def initiateOAuthFlow(implicit request: RequestWithIdentity[AnyContent]): Left[SimpleResult, Nothing] = {
+  def initiateOAuthFlow(implicit request: RequestWithIdentity[AnyContent]): Left[Result, Nothing] = {
     // There's no code in the request, this is the first step in the oauth flow
     val sessionId = request.session.get(IdentityProvider.SessionId).getOrElse(UUID.randomUUID().toString)
     val ajaxMode = request.getQueryString("mode").getOrElse("redirect") == "ajax"

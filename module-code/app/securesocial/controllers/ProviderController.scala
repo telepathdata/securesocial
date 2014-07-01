@@ -27,13 +27,13 @@ import securesocial.core.AccessDeniedException
 import scala.Some
 import play.api.http.HeaderNames
 import securesocial.core.RequestService
-import com.typesafe.scalalogging.slf4j.Logging
+import com.typesafe.scalalogging.slf4j.LazyLogging
 
 
 /**
  * A controller to provide the authentication entry point
  */
-class ProviderController extends SecureSocialController with Logging
+class ProviderController extends SecureSocialController with LazyLogging
 {
   /**
    * The property that specifies the page the user is redirected to if there is no original URL saved in
@@ -96,7 +96,7 @@ class ProviderController extends SecureSocialController with Logging
   }
 
   private def handleAuth(provider: String, redirectTo: Option[String]) = UserAwareAction { implicit request =>
-    val modifiedSession = overrideOriginalUrl(session, redirectTo)
+    val modifiedSession = overrideOriginalUrl(request.session, redirectTo)
 
     Registry.providers.get(provider) match {
       case Some(p) => {
@@ -120,7 +120,7 @@ class ProviderController extends SecureSocialController with Logging
   }
 
 
-  def handleAuthPhase1(redirectTo: Option[String], result: SimpleResult): SimpleResult = {
+  def handleAuthPhase1(redirectTo: Option[String], result: Result): Result = {
     redirectTo match {
       case Some(url) =>
         addSessionCookie(result, url)
@@ -129,7 +129,7 @@ class ProviderController extends SecureSocialController with Logging
   }
 
   def handleAuthPhase2(flowState: FlowState, modifiedSession: Session)
-                      (implicit request: RequestHeader): SimpleResult = {
+                      (implicit request: RequestHeader): Result = {
     logger.debug("handleAuthPhase2")
     var f: FlowState = flowState
     if (f.mainIdentity.isDefined) {
@@ -145,14 +145,14 @@ class ProviderController extends SecureSocialController with Logging
     completeAuthentication(f, modifiedSession)
   }
 
-  def addSessionCookie(result: SimpleResult, url: String): SimpleResult = {
+  def addSessionCookie(result: Result, url: String): Result = {
     val cookies = Cookies(result.header.headers.get(HeaderNames.SET_COOKIE))
     val resultSession = Session.decodeFromCookie(cookies.get(Session.COOKIE_NAME))
     result.withSession(resultSession + (RequestService.OriginalUrlKey -> url))
   }
 
   def completeAuthentication(flowState: FlowState, session: Session)
-                            (implicit request: RequestHeader): SimpleResult = {
+                            (implicit request: RequestHeader): Result = {
     logger.debug("user logged in : [" + flowState.newIdentity + "]")
     val withSession = Events.fire(new LoginEvent(flowState.newIdentity.get)).getOrElse(session)
     authService.create(flowState.newIdentity.get) match {
