@@ -37,9 +37,13 @@ trait RequestService {
           val token = header.split("Basic ")(1)
           val tokenStr:String = StringUtils.newStringUtf8(Base64.decodeBase64(token.getBytes))
           val splits = tokenStr.split(":")
-          val user = splits(0)
-          val pass = splits(1)
-          Some((user,pass))
+          if(splits.length == 2) {
+            val user = splits(0)
+            val pass = splits(1)
+            Some((user,pass))
+          } else{
+            None
+          }
         } else {
           None
         }
